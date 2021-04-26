@@ -47,15 +47,26 @@ TEST (wallet, status)
 	// However, it will still be part of the status set.
 	ASSERT_FALSE (wallet_has (nano_qt::status_types::synchronizing));
 	system.deadline_set (25s);
-	while (!wallet_has (nano_qt::status_types::synchronizing))
+
+	// the synchronising state is added and removed instantly, to notice it
+	// we add an observer and record the fact that it went into synchronising state
+	bool active_received = false;
+	system.nodes[0]->bootstrap_initiator.add_observer ([&active_received] (bool active_a) {
+		if (active_a)
+			active_received = active_a;
+	});
+
+	while (!wallet_has (nano_qt::status_types::synchronizing) && !active_received)
 	{
 		test_application->processEvents ();
 		ASSERT_NO_ERROR (system.poll ());
 	}
+
 	system.nodes[0]->network.cleanup (std::chrono::steady_clock::now () + std::chrono::seconds (5));
-	while (wallet_has (nano_qt::status_types::synchronizing))
+	while (!wallet_has (nano_qt::status_types::disconnected))
 	{
 		test_application->processEvents ();
+		ASSERT_NO_ERROR (system.poll ());
 	}
 	ASSERT_TRUE (wallet_has (nano_qt::status_types::disconnected));
 }

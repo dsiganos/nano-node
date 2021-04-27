@@ -14,6 +14,30 @@ using namespace std::chrono_literals;
 
 extern QApplication * test_application;
 
+static const char * status_type_to_string (nano_qt::status_types t)
+{
+	switch (t)
+	{
+		case nano_qt::status_types::disconnected:
+			return "Status: Disconnected";
+		case nano_qt::status_types::working:
+			return "Status: Generating proof of work";
+		case nano_qt::status_types::synchronizing:
+			return "Status: Synchronizing";
+		case nano_qt::status_types::locked:
+			return "Status: Wallet locked";
+		case nano_qt::status_types::vulnerable:
+			return "Status: Wallet password empty";
+		case nano_qt::status_types::active:
+			return "Status: Wallet active";
+		case nano_qt::status_types::nominal:
+			return "Status: Running";
+		default:
+			debug_assert (false);
+			return "unknown status type";
+	}
+}
+
 TEST (wallet, construction)
 {
 	nano_qt::eventloop_processor processor;
@@ -73,6 +97,18 @@ TEST (wallet, status_with_peer)
 	auto wallet (std::make_shared<nano_qt::wallet> (*test_application, processor, *system.nodes[0], wallet_l, key.pub));
 	wallet->start ();
 	auto wallet_has = [wallet] (nano_qt::status_types status_ty) {
+		static std::set<nano_qt::status_types> last_active_status;
+		if (!(wallet->active_status.active == last_active_status))
+		{
+			for (auto elem : wallet->active_status.active)
+			{
+				std::cout << status_type_to_string (elem) << ", ";
+			}
+			std::cout << "\n"
+					  << wallet->active_status.text () << "\n\n"
+					  << std::flush;
+			last_active_status = wallet->active_status.active;
+		}
 		return wallet->active_status.active.find (status_ty) != wallet->active_status.active.end ();
 	};
 	system.nodes[0]->network.udp_channels.insert (nano::endpoint (boost::asio::ip::address_v6::loopback (), 10000), 0);

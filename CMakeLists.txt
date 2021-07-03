@@ -1,5 +1,11 @@
 cmake_minimum_required(VERSION 3.4)
 
+find_program(CCACHE_FOUND ccache)
+if(CCACHE_FOUND)
+    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
+    set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK ccache)
+endif(CCACHE_FOUND)
+
 if(CMAKE_VERSION VERSION_GREATER 3.12 OR CMAKE_VERSION VERSION_EQUAL 3.12)
   # find_package uses <PACKAGENAME>_ROOT variables
   cmake_policy(SET CMP0074 NEW)

@@ -4,6 +4,7 @@
 #include <nano/boost/asio/strand.hpp>
 #include <nano/lib/asio.hpp>
 
+#include <boost/format.hpp>
 #include <boost/optional.hpp>
 
 #include <chrono>
@@ -75,6 +76,13 @@ public:
 	void type_set (type_t type_a)
 	{
 		type_m = type_a;
+	}
+
+	std::string to_string () const
+	{
+		std::string lcl = boost::str (boost::format ("%1%") % local_endpoint ());
+		std::string rmt = boost::str (boost::format ("%1%") % remote_endpoint ());
+		return lcl + "-" + rmt;
 	}
 
 protected:

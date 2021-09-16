@@ -95,13 +95,12 @@ std::unique_ptr<nano::container_info_component> nano::collect_container_info (bo
 	auto composite = std::make_unique<container_info_composite> (name);
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "connections", bootstrap_listener.connection_count (), sizeof_element }));
 	auto servers = std::make_unique<container_info_composite> ("bootstrap_servers");
-	for (auto & i: bootstrap_listener.connections)
+	for (auto & i : bootstrap_listener.connections)
 	{
 		if (auto server = i.second.lock ())
 		{
-			auto endpoint = server->socket->remote_endpoint ();
-			auto name = endpoint.address ().to_string () + std::to_string (endpoint.port ());
-			servers->add_component (nano::collect_container_info (*server, name));
+			std::string name = server->socket->to_string ();
+			servers->add_component (server->collect_container_info (name));
 		}
 	}
 	composite->add_component (std::move (servers));
@@ -784,10 +783,10 @@ size_t nano::bootstrap_server::requests_size () const
 	return requests.size ();
 }
 
-std::unique_ptr<nano::container_info_component> nano::collect_container_info (bootstrap_server & bootstrap_server, std::string const & name)
+std::unique_ptr<nano::container_info_component> nano::bootstrap_server::collect_container_info (std::string const & name)
 {
-	auto sizeof_element = sizeof (decltype (bootstrap_server.requests)::value_type);
+	auto sizeof_element = sizeof (decltype (requests)::value_type);
 	auto composite = std::make_unique<container_info_composite> (name);
-	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "requests", bootstrap_server.requests_size (), sizeof_element }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "requests", requests_size (), sizeof_element }));
 	return composite;
 }

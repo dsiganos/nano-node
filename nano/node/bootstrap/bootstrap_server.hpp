@@ -69,6 +69,6 @@ public:
 	nano::tcp_endpoint remote_endpoint{ boost::asio::ip::address_v6::any (), 0 };
 	nano::account remote_node_id{ 0 };
 	std::chrono::steady_clock::time_point last_telemetry_req{ std::chrono::steady_clock::time_point () };
+	std::unique_ptr<container_info_component> collect_container_info (std::string const & name);
 };
-std::unique_ptr<container_info_component> collect_container_info (bootstrap_server & bootstrap_server, std::string const & name);
 }

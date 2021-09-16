@@ -420,11 +420,12 @@ std::unique_ptr<nano::container_info_component> nano::transport::tcp_channels::c
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "attempts", attemps_count, sizeof (decltype (attempts)::value_type) }));
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "node_id_handshake_sockets", node_id_handshake_sockets_count, sizeof (decltype (node_id_handshake_sockets)::value_type) }));
 	auto channels = std::make_unique<container_info_composite> ("channels");
-	for (auto const & i: this->channels)
+	for (auto const & i : this->channels)
 	{
 		if (i.response_server != nullptr)
 		{
-			channels->add_component (nano::collect_container_info (*i.response_server, i.channel->to_string ()));
+			auto name = i.response_server->socket->to_string ();
+			channels->add_component (i.response_server->collect_container_info (name));
 		}
 	}
 	composite->add_component (std::move (channels));

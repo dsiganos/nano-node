@@ -99,16 +99,6 @@ std::string nano::transport::channel_tcp::to_string () const
 	return boost::str (boost::format ("%1%") % get_tcp_endpoint ());
 }
 
-std::unique_ptr<nano::container_info_component> nano::transport::channel_tcp::collect_container_info (std::string const & name)
-{
-	auto composite = std::make_unique<container_info_composite> (name);
-	if (auto server = response_server.lock ())
-	{
-		composite->add_component (nano::collect_container_info (*server, "bootstrap_server"));
-	}
-	return composite;
-}
-
 void nano::transport::channel_tcp::set_endpoint ()
 {
 	nano::lock_guard<nano::mutex> lk (channel_mutex);

@@ -45,20 +45,14 @@ void nano::rep_crawler::validate ()
 
 		if (channel->get_type () == nano::transport::transport_type::loopback)
 		{
-			if (node.config.logging.rep_crawler_logging ())
-			{
-				node.logger.try_log (boost::str (boost::format ("rep_crawler ignoring vote from loopback channel %1%") % channel->to_string ()));
-			}
+			try_log_cond (boost::str (boost::format ("rep_crawler ignoring vote from loopback channel %1%") % channel->to_string ()));
 			continue;
 		}
 
 		nano::uint128_t rep_weight = node.ledger.weight (vote->account);
 		if (rep_weight < minimum)
 		{
-			if (node.config.logging.rep_crawler_logging ())
-			{
-				node.logger.try_log (boost::str (boost::format ("rep_crawler ignoring vote from account %1% with too little voting weight %2%") % vote->account.to_account () % rep_weight));
-			}
+			try_log_cond (boost::str (boost::format ("rep_crawler ignoring vote from account %1% with too little voting weight %2%") % vote->account.to_account () % rep_weight));
 			continue;
 		}
 
@@ -391,4 +385,12 @@ std::size_t nano::rep_crawler::representative_count ()
 {
 	nano::lock_guard<nano::mutex> lock (probable_reps_mutex);
 	return probable_reps.size ();
+}
+
+template <typename... LogItems> void nano::rep_crawler::try_log_cond (LogItems &&... log_items)
+{
+	if (node.config.logging.rep_crawler_logging ())
+	{
+		node.logger.try_log (std::forward<LogItems> (log_items)...);
+	}
 }

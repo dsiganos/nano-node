@@ -147,6 +147,9 @@ private:
 	/** Protects the probable_reps container */
 	mutable nano::mutex probable_reps_mutex;
 
+	/* conditional try_log wrapper, checks if rep crawler logging is enabled before logging */
+	template <typename... LogItems> void try_log_cond (LogItems &&... log_items);
+
 	/** Probable representatives */
 	probably_rep_t probable_reps;
 

@@ -100,7 +100,7 @@ public:
 	 * with high probability that the endpoint is a representative node.
 	 * @return false if the vote corresponded to any active hash.
 	 */
-	bool response (std::shared_ptr<nano::transport::channel> const &, std::shared_ptr<nano::vote> const &);
+	bool response (std::shared_ptr<nano::transport::channel> const &, std::shared_ptr<nano::vote> const &, bool unit_test=false);
 
 	/** Get total available weight from representatives */
 	nano::uint128_t total_weight () const;

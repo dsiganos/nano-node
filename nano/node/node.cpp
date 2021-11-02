@@ -288,6 +288,7 @@ nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path co
 			// The vote_code::vote is handled inside the election
 			if (code_a == nano::vote_code::indeterminate)
 			{
+				logger.try_log (boost::str (boost::format ("observed indeterminate vote: %1% channel %2%") % vote_a->to_json() % channel_a->to_string ()));
 				auto active_in_rep_crawler (!this->rep_crawler.response (channel_a, vote_a));
 				if (active_in_rep_crawler)
 				{
@@ -295,6 +296,14 @@ nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path co
 					this->online_reps.observe (vote_a->account);
 				}
 				this->gap_cache.vote (vote_a);
+			}
+			if (code_a == nano::vote_code::replay)
+			{
+				logger.always_log (boost::str (boost::format ("observed replay vote: %1% channel %2%") % vote_a->to_json() % channel_a->to_string ()));
+			}
+			if (code_a == nano::vote_code::vote)
+			{
+				logger.always_log (boost::str (boost::format ("observed PROPER vote: %1% channel %2%") % vote_a->to_json() % channel_a->to_string ()));
 			}
 		});
 		if (websocket_server)

@@ -19,6 +19,12 @@ GTEST_API_ int main (int argc, char ** argv)
 	nano::node_singleton_memory_pool_purge_guard memory_pool_cleanup_guard;
 	// Setting up logging so that there aren't any piped to standard output.
 	nano::logging logging;
+	logging.log_to_cerr_value = true;
+	logging.min_time_between_log_output = std::chrono::milliseconds {0};
+	logging.rep_crawler_logging_value = true;
+	//logging.network_logging_value = true;
+	//logging.vote_logging_value = true;
+	logging.flush = true;
 	logging.init (nano::unique_path ());
 	testing::InitGoogleTest (&argc, argv);
 	auto res = RUN_ALL_TESTS ();

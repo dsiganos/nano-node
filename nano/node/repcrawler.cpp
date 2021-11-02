@@ -236,22 +236,26 @@ bool nano::rep_crawler::is_pr (nano::transport::channel const & channel_a) const
 	return result;
 }
 
-bool nano::rep_crawler::response (std::shared_ptr<nano::transport::channel> const & channel_a, std::shared_ptr<nano::vote> const & vote_a)
+bool nano::rep_crawler::response (std::shared_ptr<nano::transport::channel> const & channel_a, std::shared_ptr<nano::vote> const & vote_a, bool unit_test)
 {
 	bool error = true;
 	nano::lock_guard<nano::mutex> lock (active_mutex);
+	try_log_cond (boost::str (boost::format ("rep_crawler active, size=%1%") % active.size ()));
+	for (const auto &hash: active) {
+		try_log_cond (boost::str (boost::format ("rep_crawler active: %1%") % hash.to_string ()));
+	}
 	for (auto i = vote_a->begin (), n = vote_a->end (); i != n; ++i)
 	{
 		if (active.count (*i) != 0)
 		{
-			try_log_cond (boost::str (boost::format ("rep_crawler received response to active hash %1%") % i->to_string ()));
+			try_log_cond (boost::str (boost::format ("rep_crawler (unit_test=%2%) received response to active hash %1%") % i->to_string () % unit_test));
 			responses.emplace_back (channel_a, vote_a);
 			error = false;
 			break;
 		}
 		else
 		{
-			try_log_cond (boost::str (boost::format ("rep_crawler received vote for inactive hash %1%") % i->to_string ()));
+			try_log_cond (boost::str (boost::format ("rep_crawler (unit_test=%2%) received vote for inactive hash %1%") % i->to_string() % unit_test));
 		}
 	}
 	return error;

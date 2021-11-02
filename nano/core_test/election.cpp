@@ -246,7 +246,7 @@ TEST (election, DISABLED_quorum_minimum_update_weight_before_quorum_checks)
 	auto vote2 (std::make_shared<nano::vote> (key1.pub, key1.prv, std::numeric_limits<uint64_t>::max (), send1));
 	auto channel = node1.network.find_channel (node2.network.endpoint ());
 	ASSERT_NE (channel, nullptr);
-	ASSERT_TIMELY (10s, !node1.rep_crawler.response (channel, vote2));
+	ASSERT_TIMELY (10s, !node1.rep_crawler.response (channel, vote2, true));
 	ASSERT_FALSE (election->confirmed ());
 	{
 		nano::lock_guard<nano::mutex> guard (node1.online_reps.mutex);

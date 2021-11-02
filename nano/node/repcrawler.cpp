@@ -167,10 +167,7 @@ void nano::rep_crawler::query (std::vector<std::shared_ptr<nano::transport::chan
 		try_log_cond (boost::str (boost::format ("rep_crawler query hash  %1%") % hash_root.first.to_string()));
 		active.insert (hash_root.first);
 	}
-	if (!channels_a.empty ())
-	{
-		node.active.erase_recently_confirmed (hash_root.first);
-	}
+
 	for (auto i (channels_a.begin ()), n (channels_a.end ()); i != n; ++i)
 	{
 		debug_assert (*i != nullptr);

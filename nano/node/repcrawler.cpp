@@ -278,19 +278,24 @@ nano::uint128_t nano::rep_crawler::total_weight () const
 
 void nano::rep_crawler::on_rep_request (std::shared_ptr<nano::transport::channel> const & channel_a)
 {
-	nano::lock_guard<nano::mutex> lock (probable_reps_mutex);
-	if (channel_a->get_tcp_endpoint ().address () != boost::asio::ip::address_v6::any ())
+	if (channel_a->get_tcp_endpoint ().address () == boost::asio::ip::address_v6::any ())
 	{
-		probably_rep_t::index<tag_channel_ref>::type & channel_ref_index = probable_reps.get<tag_channel_ref> ();
+		try_log_cond (boost::str (boost::format ("on_rep_request: unconnected channel %1%") % channel_a->to_string ()));
+		return;
+	}
 
-		// Find and update the timestamp on all reps available on the endpoint (a single host may have multiple reps)
-		auto itr_pair = channel_ref_index.equal_range (*channel_a);
-		for (; itr_pair.first != itr_pair.second; itr_pair.first++)
-		{
-			channel_ref_index.modify (itr_pair.first, [] (nano::representative & value_a) {
-				value_a.last_request = std::chrono::steady_clock::now ();
-			});
-		}
+	nano::lock_guard<nano::mutex> lock (probable_reps_mutex);
+
+	probably_rep_t::index<tag_channel_ref>::type & channel_ref_index = probable_reps.get<tag_channel_ref> ();
+
+	// Find and update the timestamp on all reps available on the endpoint (a single host may have multiple reps)
+	auto itr_pair = channel_ref_index.equal_range (*channel_a);
+	for (; itr_pair.first != itr_pair.second; itr_pair.first++)
+	{
+		try_log_cond (boost::str (boost::format ("on_rep_request: set last_request %1% at %2%") % itr_pair.first->account.to_account () % itr_pair.first->channel->to_string ()));
+		channel_ref_index.modify (itr_pair.first, [] (nano::representative & value_a) {
+			value_a.last_request = std::chrono::steady_clock::now ();
+		});
 	}
 }
 

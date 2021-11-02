@@ -164,14 +164,6 @@ void nano::rep_crawler::query (std::vector<std::shared_ptr<nano::transport::chan
 	auto hash_root (node.ledger.hash_root_random (transaction));
 	{
 		nano::lock_guard<nano::mutex> lock (active_mutex);
-		// Don't send same block multiple times in tests
-		if (node.network_params.network.is_dev_network ())
-		{
-			for (auto i (0); active.count (hash_root.first) != 0 && i < 4; ++i)
-			{
-				hash_root = node.ledger.hash_root_random (transaction);
-			}
-		}
 		try_log_cond (boost::str (boost::format ("rep_crawler query hash  %1%") % hash_root.first.to_string()));
 		active.insert (hash_root.first);
 	}

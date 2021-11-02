@@ -9,6 +9,7 @@ nano::rep_crawler::rep_crawler (nano::node & node_a) :
 	if (!node.flags.disable_rep_crawler)
 	{
 		node.observers.endpoint.add ([this] (std::shared_ptr<nano::transport::channel> const & channel_a) {
+			this->try_log_cond (boost::str (boost::format ("rep_crawler: endpoint observed %1%") % channel_a->to_string()));
 			this->query (channel_a);
 		});
 	}
@@ -16,12 +17,14 @@ nano::rep_crawler::rep_crawler (nano::node & node_a) :
 
 void nano::rep_crawler::remove (nano::block_hash const & hash_a)
 {
+	try_log_cond (boost::str (boost::format ("rep_crawler: remove hash %1%") % hash_a.to_string()));
 	nano::lock_guard<nano::mutex> lock (active_mutex);
 	active.erase (hash_a);
 }
 
 void nano::rep_crawler::start ()
 {
+	try_log_cond ("rep_crawler: starting ongoing crawl");
 	ongoing_crawl ();
 }
 
@@ -32,6 +35,8 @@ void nano::rep_crawler::validate ()
 		nano::lock_guard<nano::mutex> lock (active_mutex);
 		responses_l.swap (responses);
 	}
+
+	try_log_cond (boost::str (boost::format ("rep_crawler: validate %1% responses") % responses_l.size()));
 
 	// normally the rep_crawler only tracks principal reps but it can be made to track
 	// reps with less weight by setting rep_crawler_weight_minimum to a low value
@@ -92,10 +97,14 @@ void nano::rep_crawler::validate ()
 		{
 			node.logger.try_log (boost::str (boost::format ("Found representative %1% at %2%") % vote->account.to_account () % channel->to_string ()));
 		}
-
-		if (updated)
+		else if (updated)
 		{
 			node.logger.try_log (boost::str (boost::format ("Updated representative %1% at %2% (was at: %3%)") % vote->account.to_account () % channel->to_string () % prev_channel->to_string ()));
+		}
+		else
+		{
+			// A vote arrived for a represenative but it matches the info already held
+			try_log_cond (boost::str (boost::format ("Unchanged Representative %1% at %2%") % vote->account.to_account () % channel->to_string ()));
 		}
 	}
 }
@@ -104,6 +113,7 @@ void nano::rep_crawler::ongoing_crawl ()
 {
 	auto now (std::chrono::steady_clock::now ());
 	auto total_weight_l (total_weight ());
+	try_log_cond (boost::str (boost::format ("rep_crawler starting ongoing crawl total_weight=%1%") % total_weight_l));
 	cleanup_reps ();
 	update_weights ();
 	validate ();
@@ -162,6 +172,7 @@ void nano::rep_crawler::query (std::vector<std::shared_ptr<nano::transport::chan
 				hash_root = node.ledger.hash_root_random (transaction);
 			}
 		}
+		try_log_cond (boost::str (boost::format ("rep_crawler query hash  %1%") % hash_root.first.to_string()));
 		active.insert (hash_root.first);
 	}
 	if (!channels_a.empty ())
@@ -197,10 +208,12 @@ void nano::rep_crawler::throttled_remove (nano::block_hash const & hash_a, uint6
 {
 	if (node.vote_processor.total_processed >= target_finished_processed)
 	{
+		try_log_cond (boost::str (boost::format ("rep_crawler::throttled_remove hash %1%") % hash_a.to_string()));
 		remove (hash_a);
 	}
 	else
 	{
+		try_log_cond (boost::str (boost::format ("rep_crawler::throttled_remove delay removal of hash %1%") % hash_a.to_string()));
 		std::weak_ptr<nano::node> node_w (node.shared ());
 		node.workers.add_timed_task (std::chrono::steady_clock::now () + std::chrono::seconds (5), [node_w, hash_a, target_finished_processed] () {
 			if (auto node_l = node_w.lock ())
@@ -231,9 +244,14 @@ bool nano::rep_crawler::response (std::shared_ptr<nano::transport::channel> cons
 	{
 		if (active.count (*i) != 0)
 		{
+			try_log_cond (boost::str (boost::format ("rep_crawler received response to active hash %1%") % i->to_string ()));
 			responses.emplace_back (channel_a, vote_a);
 			error = false;
 			break;
+		}
+		else
+		{
+			try_log_cond (boost::str (boost::format ("rep_crawler received vote for inactive hash %1%") % i->to_string ()));
 		}
 	}
 	return error;
@@ -279,8 +297,10 @@ void nano::rep_crawler::on_rep_request (std::shared_ptr<nano::transport::channel
 void nano::rep_crawler::cleanup_reps ()
 {
 	std::vector<std::shared_ptr<nano::transport::channel>> channels;
+
+	// iterate through probable reps and copy their channels into the local channels vector
+	// erase any probable reps without a connected endpoint
 	{
-		// Check known rep channels
 		nano::lock_guard<nano::mutex> lock (probable_reps_mutex);
 		auto iterator (probable_reps.get<tag_last_request> ().begin ());
 		while (iterator != probable_reps.get<tag_last_request> ().end ())
@@ -293,10 +313,12 @@ void nano::rep_crawler::cleanup_reps ()
 			else
 			{
 				// Remove reps with closed channels
+				try_log_cond (boost::str (boost::format ("Erasing representative (not connected) %1% at %2%") % iterator->account.to_account () % iterator->channel->to_string ()));
 				iterator = probable_reps.get<tag_last_request> ().erase (iterator);
 			}
 		}
 	}
+
 	// Remove reps with inactive channels
 	for (auto const & i : channels)
 	{
@@ -320,6 +342,8 @@ void nano::rep_crawler::cleanup_reps ()
 		if (!equal)
 		{
 			nano::lock_guard<nano::mutex> lock (probable_reps_mutex);
+			auto rep = probable_reps.get<tag_channel_ref> ().find (*i);
+			try_log_cond (boost::str (boost::format ("Erasing representative (no channel found) %1% at %2%") % rep->account.to_account () % rep->channel->to_string ()));
 			probable_reps.get<tag_channel_ref> ().erase (*i);
 		}
 	}
@@ -335,6 +359,7 @@ void nano::rep_crawler::update_weights ()
 		{
 			if (i->weight.number () != weight)
 			{
+				try_log_cond (boost::str (boost::format ("Update weight of representative %1% at %2%, weight was:%3% is:%4%") % i->account.to_account () % i->channel->to_string () % i->weight.to_string() % weight));
 				probable_reps.get<tag_last_request> ().modify (i, [weight] (nano::representative & info) {
 					info.weight = weight;
 				});
@@ -344,6 +369,7 @@ void nano::rep_crawler::update_weights ()
 		else
 		{
 			// Erase non representatives
+			try_log_cond (boost::str (boost::format ("Erasing representative (zero weight) %1% at %2%") % i->account.to_account () % i->channel->to_string ()));
 			i = probable_reps.get<tag_last_request> ().erase (i);
 		}
 	}

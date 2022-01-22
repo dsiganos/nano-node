@@ -52,11 +52,31 @@ public:
 		realtime,
 		realtime_response_server // special type for tcp channel response server
 	};
+
 	enum class endpoint_type_t
 	{
 		server,
 		client
 	};
+
+	class timer
+	{
+		// Non-copyable
+		timer (nano::socket::timer &) = delete;
+		timer & operator= (nano::socket::timer const &) = delete;
+
+	public:
+		timer (std::shared_ptr<nano::socket> socket_a);
+		timer (nano::socket::timer && other_a);
+		~timer ();
+		void release ();
+
+	private:
+		std::shared_ptr<nano::socket> socket;
+		std::chrono::seconds idle;
+		uint64_t value;
+	};
+
 	/**
 	 * Constructor
 	 * @param node Owning node
@@ -73,9 +93,6 @@ public:
 	boost::asio::ip::tcp::endpoint local_endpoint () const;
 	/** Returns true if the socket has timed out */
 	bool has_timed_out () const;
-	/** This can be called to change the maximum idle time, e.g. based on the type of traffic detected. */
-	void timeout_set (std::chrono::seconds io_timeout_a);
-	void start_timer (std::chrono::seconds deadline_a);
 	void set_silent_connection_tolerance_time (std::chrono::seconds tolerance_time_a);
 	bool max () const
 	{
@@ -122,11 +139,10 @@ protected:
 	/** The other end of the connection */
 	boost::asio::ip::tcp::endpoint remote;
 
-	std::atomic<uint64_t> next_deadline;
+	std::atomic<uint64_t> deadline_next{ std::numeric_limits<uint64_t>::max () };
 	std::atomic<uint64_t> last_completion_time_or_init;
 	std::atomic<uint64_t> last_receive_time_or_init;
 	std::atomic<bool> timed_out{ false };
-	std::atomic<std::chrono::seconds> io_timeout;
 	std::chrono::seconds silent_connection_tolerance_time;
 	std::atomic<std::size_t> queue_size{ 0 };
 
@@ -134,10 +150,9 @@ protected:
 	 error codes as the OS may have already completed the async operation. */
 	std::atomic<bool> closed{ false };
 	void close_internal ();
-	void start_timer ();
-	void stop_timer ();
 	void update_last_receive_time ();
 	void checkup ();
+	void deadline_start ();
 
 private:
 	type_t type_m{ type_t::undefined };

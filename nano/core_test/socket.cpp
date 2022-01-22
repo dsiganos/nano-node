@@ -605,3 +605,35 @@ TEST (socket, concurrent_writes)
 		t.join ();
 	}
 }
+
+TEST (socket_timer, construct_destruct)
+{
+	nano::system system (1);
+	auto socket = std::make_shared<nano::client_socket> (*system.nodes[0]);
+	nano::socket::timer timer{ socket };
+}
+
+TEST (socket_timer, construct_release)
+{
+	nano::system system (1);
+	auto socket = std::make_shared<nano::client_socket> (*system.nodes[0]);
+	nano::socket::timer timer{ socket };
+	timer.release ();
+}
+
+TEST (socket_timer, construct_move_destruct)
+{
+	nano::system system (1);
+	auto socket = std::make_shared<nano::client_socket> (*system.nodes[0]);
+	nano::socket::timer timer0{ socket };
+	nano::socket::timer timer1{ std::move (timer0) };
+}
+
+TEST (socket_timer, construct_move_release)
+{
+	nano::system system (1);
+	auto socket = std::make_shared<nano::client_socket> (*system.nodes[0]);
+	nano::socket::timer timer0{ socket };
+	nano::socket::timer timer1{ std::move (timer0) };
+	timer1.release ();
+}

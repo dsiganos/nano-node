@@ -40,10 +40,7 @@ nano::socket::socket (nano::node & node_a, endpoint_type_t endpoint_type_a) :
 	tcp_socket{ node_a.io_ctx },
 	node{ node_a },
 	endpoint_type_m{ endpoint_type_a },
-	next_deadline{ std::numeric_limits<uint64_t>::max () },
-	last_completion_time_or_init{ nano::seconds_since_epoch () },
 	last_receive_time_or_init{ nano::seconds_since_epoch () },
-	io_timeout{ node_a.config.tcp_io_timeout },
 	silent_connection_tolerance_time{ node_a.network_params.network.silent_connection_tolerance_time }
 {
 }
@@ -58,11 +55,9 @@ void nano::socket::async_connect (nano::tcp_endpoint const & endpoint_a, std::fu
 	debug_assert (endpoint_type () == endpoint_type_t::client);
 	checkup ();
 	auto this_l (shared_from_this ());
-	start_timer ();
 	this_l->tcp_socket.async_connect (endpoint_a,
 	boost::asio::bind_executor (this_l->strand,
-	[this_l, callback = std::move (callback_a), endpoint_a] (boost::system::error_code const & ec) {
-		this_l->stop_timer ();
+	[this_l, callback = std::move (callback_a), endpoint_a, timer = socket::timer{ shared_from_this () }] (boost::system::error_code const & ec) mutable {
 		this_l->remote = endpoint_a;
 		callback (ec);
 	}));
@@ -75,13 +70,11 @@ void nano::socket::async_read (std::shared_ptr<std::vector<uint8_t>> const & buf
 		auto this_l (shared_from_this ());
 		if (!closed)
 		{
-			start_timer ();
 			boost::asio::post (strand, boost::asio::bind_executor (strand, [buffer_a, callback = std::move (callback_a), size_a, this_l] () mutable {
 				boost::asio::async_read (this_l->tcp_socket, boost::asio::buffer (buffer_a->data (), size_a),
 				boost::asio::bind_executor (this_l->strand,
-				[this_l, buffer_a, cbk = std::move (callback)] (boost::system::error_code const & ec, std::size_t size_a) {
+				[this_l, buffer_a, cbk = std::move (callback), timer = socket::timer{ this_l->shared_from_this () }] (boost::system::error_code const & ec, std::size_t size_a) mutable {
 					this_l->node.stats.add (nano::stat::type::traffic_tcp, nano::stat::dir::in, size_a);
-					this_l->stop_timer ();
 					this_l->update_last_receive_time ();
 					cbk (ec, size_a);
 				}));
@@ -104,13 +97,11 @@ void nano::socket::async_write (nano::shared_const_buffer const & buffer_a, std:
 		boost::asio::post (strand, boost::asio::bind_executor (strand, [buffer_a, callback = std::move (callback_a), this_l = shared_from_this ()] () mutable {
 			if (!this_l->closed)
 			{
-				this_l->start_timer ();
 				nano::async_write (this_l->tcp_socket, buffer_a,
 				boost::asio::bind_executor (this_l->strand,
-				[buffer_a, cbk = std::move (callback), this_l] (boost::system::error_code ec, std::size_t size_a) {
+				[buffer_a, cbk = std::move (callback), this_l, timer = socket::timer{ this_l->shared_from_this () }] (boost::system::error_code ec, std::size_t size_a) mutable {
 					--this_l->queue_size;
 					this_l->node.stats.add (nano::stat::type::traffic_tcp, nano::stat::dir::out, size_a);
-					this_l->stop_timer ();
 					if (cbk)
 					{
 						cbk (ec, size_a);
@@ -134,21 +125,6 @@ void nano::socket::async_write (nano::shared_const_buffer const & buffer_a, std:
 	}
 }
 
-void nano::socket::start_timer ()
-{
-	start_timer (io_timeout);
-}
-
-void nano::socket::start_timer (std::chrono::seconds deadline_a)
-{
-	next_deadline = deadline_a.count ();
-}
-
-void nano::socket::stop_timer ()
-{
-	last_completion_time_or_init = nano::seconds_since_epoch ();
-}
-
 void nano::socket::update_last_receive_time ()
 {
 	last_receive_time_or_init = nano::seconds_since_epoch ();
@@ -167,7 +143,7 @@ void nano::socket::checkup ()
 				this_l->node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_silent_connection_drop, nano::stat::dir::in);
 				condition_to_disconnect = true;
 			}
-			if (this_l->next_deadline != std::numeric_limits<uint64_t>::max () && (now - this_l->last_completion_time_or_init) > this_l->next_deadline)
+			if (this_l->deadline_next.load () < std::chrono::steady_clock::now ().time_since_epoch ().count ())
 			{
 				this_l->node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_io_timeout_drop,
 				this_l->endpoint_type () == endpoint_type_t::server ? nano::stat::dir::in : nano::stat::dir::out);
@@ -196,14 +172,43 @@ void nano::socket::checkup ()
 	});
 }
 
+// Make sure the new connection doesn't idle. Note that in most cases, the callback is going to start
+// an IO operation immediately, which will start a timer.
+void nano::socket::deadline_start ()
+{
+	debug_assert (deadline_next.load () == std::numeric_limits<uint64_t>::max ());
+	deadline_next = (std::chrono::steady_clock::now () + std::chrono::seconds (2)).time_since_epoch ().count ();
+}
+
+nano::socket::timer::timer (std::shared_ptr<nano::socket> socket_a) :
+	socket{ socket_a },
+	idle{ socket_a->node.network_params.network.idle_timeout },
+	value{ static_cast<uint64_t> ((std::chrono::steady_clock::now () + socket_a->node.config.tcp_io_timeout).time_since_epoch ().count ()) }
+{
+	socket_a->deadline_next = value;
+}
+
+nano::socket::timer::timer (nano::socket::timer && other_a) :
+	socket{ other_a.socket },
+	idle{ other_a.idle },
+	value{ other_a.value }
+{
+	other_a.value = std::numeric_limits<uint64_t>::max ();
+}
+
+nano::socket::timer::~timer ()
+{
+	release ();
+}
+
+void nano::socket::timer::release ()
+{
+	socket->deadline_next.compare_exchange_strong (value, (std::chrono::steady_clock::now () + idle).time_since_epoch ().count ());
+}
+
 bool nano::socket::has_timed_out () const
 {
 	return timed_out;
-}
-
-void nano::socket::timeout_set (std::chrono::seconds io_timeout_a)
-{
-	io_timeout = io_timeout_a;
 }
 
 void nano::socket::set_silent_connection_tolerance_time (std::chrono::seconds tolerance_time_a)
@@ -227,7 +232,6 @@ void nano::socket::close_internal ()
 {
 	if (!closed.exchange (true))
 	{
-		io_timeout = std::chrono::seconds (0);
 		boost::system::error_code ec;
 
 		// Ignore error code for shutdown as it is best-effort
@@ -257,7 +261,7 @@ nano::server_socket::server_socket (nano::node & node_a, boost::asio::ip::tcp::e
 	local{ std::move (local_a) },
 	max_inbound_connections{ max_connections_a }
 {
-	io_timeout = std::chrono::seconds::max ();
+	//io_timeout = std::chrono::seconds::max ();
 }
 
 void nano::server_socket::start (boost::system::error_code & ec_a)
@@ -411,7 +415,6 @@ void nano::server_socket::on_connection (std::function<bool (std::shared_ptr<nan
 				// Make sure the new connection doesn't idle. Note that in most cases, the callback is going to start
 				// an IO operation immediately, which will start a timer.
 				new_connection->checkup ();
-				new_connection->start_timer (this_l->node.network_params.network.is_dev_network () ? this_l->node.network_params.network.socket_dev_idle_timeout : this_l->node.network_params.network.idle_timeout);
 				this_l->node.stats.inc (nano::stat::type::tcp, nano::stat::detail::tcp_accept_success, nano::stat::dir::in);
 				this_l->connections_per_address.emplace (new_connection->remote.address (), new_connection);
 				if (cbk (new_connection, ec_a))

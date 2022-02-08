@@ -289,11 +289,26 @@ int64_t nano::active_transactions::vacancy () const
 
 void nano::active_transactions::request_confirm (nano::unique_lock<nano::mutex> & lock_a)
 {
+	std::cout << "nano::active_transactions::request_confirm\n";
 	debug_assert (lock_a.owns_lock ());
 
 	std::size_t const this_loop_target_l (roots.size ());
 	auto const elections_l{ list_active_impl (this_loop_target_l) };
 
+#if 0
+	for (auto &e : elections_l)
+	{
+		if (node.flags.disable_rep_crawler == true) continue;
+		std::cout << "Election\n";
+		std::cout << e->root.to_string() << "\n";
+		std::unordered_map<nano::block_hash, std::shared_ptr<nano::block>> blocks = e->blocks();
+		for (auto &b: blocks)
+		{
+			std::cout << b.first.to_string();
+			std::cout << b.second->to_json();
+		}
+	}
+#endif
 	lock_a.unlock ();
 
 	nano::confirmation_solicitor solicitor (node.network, node.config);
@@ -342,9 +357,9 @@ void nano::active_transactions::request_confirm (nano::unique_lock<nano::mutex> 
 	final_generator_session.flush ();
 	lock_a.lock ();
 
-	if (node.config.logging.timing_logging ())
+	if (1)
 	{
-		node.logger.try_log (boost::str (boost::format ("Processed %1% elections (%2% were already confirmed) in %3% %4%") % this_loop_target_l % (this_loop_target_l - unconfirmed_count_l) % elapsed.value ().count () % elapsed.unit ()));
+		std::cout << (boost::str (boost::format ("Processed %1% elections (%2% were already confirmed) in %3% %4%\n") % this_loop_target_l % (this_loop_target_l - unconfirmed_count_l) % elapsed.value ().count () % elapsed.unit ()));
 	}
 }
 
@@ -383,9 +398,15 @@ void nano::active_transactions::cleanup_election (nano::unique_lock<nano::mutex>
 	}
 
 	node.stats.inc (nano::stat::type::election, election.confirmed () ? nano::stat::detail::election_confirmed : nano::stat::detail::election_not_confirmed);
-	if (node.config.logging.election_result_logging ())
+	if (1)
 	{
-		node.logger.try_log (boost::str (boost::format ("Election erased for root %1%, confirmed: %2$b") % election.qualified_root.to_string () % election.confirmed ()));
+		std::cout << (boost::str (boost::format ("Election erased for root %1%, confirmed: %2$b\n") % election.qualified_root.to_string () % election.confirmed ()));
+		std::shared_ptr<nano::block> b = election.winner();
+		if (b)
+		{
+			std::cout << (boost::str (boost::format ("Election winner: %1%\n") % b->hash().to_string()));
+			std::cout << b->to_json() << "\n";
+		}
 	}
 }
 

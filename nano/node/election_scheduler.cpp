@@ -102,6 +102,7 @@ bool nano::election_scheduler::overfill_predicate () const
 	return node.active.vacancy () < 0;
 }
 
+using namespace std::chrono_literals;
 void nano::election_scheduler::run ()
 {
 	nano::thread_role::set (nano::thread_role::name::election_scheduler);
@@ -124,6 +125,7 @@ void nano::election_scheduler::run ()
 				auto const [block, previous_balance, election_behavior, confirmation_action] = manual_queue.front ();
 				manual_queue.pop_front ();
 				lock.unlock ();
+				std::this_thread::sleep_for (700ms);
 				nano::unique_lock<nano::mutex> lock2 (node.active.mutex);
 				node.active.insert_impl (lock2, block, previous_balance, election_behavior, confirmation_action);
 			}
@@ -132,6 +134,7 @@ void nano::election_scheduler::run ()
 				auto block = priority.top ();
 				priority.pop ();
 				lock.unlock ();
+				std::this_thread::sleep_for (700ms);
 				std::shared_ptr<nano::election> election;
 				nano::unique_lock<nano::mutex> lock2 (node.active.mutex);
 				election = node.active.insert_impl (lock2, block).election;

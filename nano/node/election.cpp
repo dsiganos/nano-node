@@ -203,7 +203,7 @@ bool nano::election::transition_time (nano::confirmation_solicitor & solicitor_a
 		if (!state_change (state_m.load (), nano::election::state_t::expired_unconfirmed))
 		{
 			result = true;
-			if (node.config.logging.election_expiration_tally_logging ())
+			if (1)
 			{
 				log_votes (tally_impl (), "Election expired: ");
 			}
@@ -299,7 +299,7 @@ void nano::election::confirm_if_quorum (nano::unique_lock<nano::mutex> & lock_a)
 		}
 		if (!node.ledger.cache.final_votes_confirmation_canary.load () || final_weight >= node.online_reps.delta ())
 		{
-			if (node.config.logging.vote_logging () || (node.config.logging.election_fork_tally_logging () && last_blocks.size () > 1))
+			if (last_blocks.size () > 1)
 			{
 				log_votes (tally_l);
 			}
@@ -324,7 +324,7 @@ void nano::election::log_votes (nano::tally_t const & tally_a, std::string const
 			tally << boost::str (boost::format ("%1%%2% %3% %4%") % line_end % i->first.to_account () % std::to_string (i->second.timestamp) % i->second.hash.to_string ());
 		}
 	}
-	node.logger.try_log (tally.str ());
+	std::cout << (tally.str ()) << "\n";
 }
 
 std::shared_ptr<nano::block> nano::election::find (nano::block_hash const & hash_a) const

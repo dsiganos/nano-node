@@ -2500,7 +2500,8 @@ TEST (node, local_votes_cache_fork)
 	node_flags.disable_lazy_bootstrap = true;
 	node_flags.disable_legacy_bootstrap = true;
 	node_flags.disable_wallet_bootstrap = true;
-	nano::node_config node_config (nano::get_available_port (), system.logging);
+
+	nano::node_config node_config (25000, system.logging);
 	node_config.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
 	auto & node1 (*system.add_node (node_config, node_flags));
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
@@ -2513,24 +2514,34 @@ TEST (node, local_votes_cache_fork)
 				 .sign (nano::dev::genesis_key.prv, nano::dev::genesis_key.pub)
 				 .work (*node1.work_generate_blocking (nano::dev::genesis->hash ()))
 				 .build_shared ();
+	std::cout << "send1 hash: " << send1->hash().to_string() << "\n";
+	std::cout << "send1 block:\n" << send1->to_json() << "\n\n";
+
 	auto send1_fork = nano::state_block_builder ()
 					  .account (nano::dev::genesis_key.pub)
 					  .previous (nano::dev::genesis->hash ())
 					  .representative (nano::dev::genesis_key.pub)
-					  .balance (nano::dev::constants.genesis_amount - 2 * nano::Gxrb_ratio)
+					  .balance (nano::dev::constants.genesis_amount - 2 * nano::Gxrb_ratio - 455)
 					  .link (nano::dev::genesis_key.pub)
 					  .sign (nano::dev::genesis_key.prv, nano::dev::genesis_key.pub)
 					  .work (*node1.work_generate_blocking (nano::dev::genesis->hash ()))
 					  .build_shared ();
+	std::cout << "send1_fork hash: " << send1_fork->hash().to_string() << "\n";
+	std::cout << "send1_fork block:\n" << send1_fork->to_json() << "\n\n";
+
 	ASSERT_EQ (nano::process_result::progress, node1.process (*send1).code);
+
 	// Cache vote
 	auto vote (std::make_shared<nano::vote> (nano::dev::genesis_key.pub, nano::dev::genesis_key.prv, 0, 0, std::vector<nano::block_hash> (1, send1->hash ())));
+	std::cout << "vote processor vote\n";
 	node1.vote_processor.vote (vote, std::make_shared<nano::transport::channel_loopback> (node1));
 	node1.history.add (send1->root (), send1->hash (), vote);
 	auto votes2 (node1.history.votes (send1->root (), send1->hash ()));
 	ASSERT_EQ (1, votes2.size ());
 	ASSERT_EQ (1, votes2[0]->blocks.size ());
+
 	// Start election for forked block
+	std::cout << "start election for forked block\n";
 	node_config.peering_port = nano::get_available_port ();
 	auto & node2 (*system.add_node (node_config, node_flags));
 	node2.process_active (send1_fork);

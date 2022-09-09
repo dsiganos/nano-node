@@ -316,6 +316,7 @@ nano::bootstrap::bootstrap_ascending::bootstrap_ascending (std::shared_ptr<nano:
 	bootstrap_attempt{ node_a, nano::bootstrap_mode::ascending, incremental_id_a, id_a },
 	pool{ *node }
 {
+	std::cout << "bootstrap::bootstrap_ascending::bootstrap_ascending\n" << std::flush;
 	auto tx = node_a->store.tx_begin_read ();
 	for (auto i = node_a->store.account.begin (tx), n = node_a->store.account.end (); i != n; ++i)
 	{
@@ -329,6 +330,7 @@ nano::bootstrap::bootstrap_ascending::bootstrap_ascending (std::shared_ptr<nano:
 
 void nano::bootstrap::bootstrap_ascending::thread::request_one ()
 {
+	std::cout << "bootstrap::bootstrap_ascending::request_one\n" << std::flush;
 	wait_available_request ();
 	if (bootstrap.stopped)
 	{

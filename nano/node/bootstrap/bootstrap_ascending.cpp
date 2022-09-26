@@ -471,8 +471,13 @@ void nano::bootstrap::bootstrap_ascending::run ()
 
 	debug_log (boost::str (boost::format ("Starting ascending bootstrap main thread, parallelism=%1%") % parallelism));
 
-	node.block_processor.processed.add ([node = node.shared ()] (nano::transaction const & tx, nano::process_return const & result, nano::block const & block) {
-		node->ascendboot.inspect (tx, result, block);
+	std::weak_ptr<nano::node> node_weak = node.shared();
+	node.block_processor.processed.add ([node_weak] (nano::transaction const & tx, nano::process_return const & result, nano::block const & block) {
+		auto node = node_weak.lock();
+		if (node)
+		{
+			node->ascendboot.inspect (tx, result, block);
+		}
 	});
 
 	std::deque<std::thread> threads;

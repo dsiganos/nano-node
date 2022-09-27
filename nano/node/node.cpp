@@ -755,7 +755,7 @@ void nano::node::stop ()
 		logger.always_log ("Node stopping");
 		// Cancels ongoing work generation tasks, which may be blocking other threads
 		// No tasks may wait for work generation in I/O threads, or termination signal capturing will be unable to call node::stop()
-		ascendboot.stop();
+		ascendboot.stop ();
 		distributed_work.stop ();
 		unchecked.stop ();
 		block_processor.stop ();

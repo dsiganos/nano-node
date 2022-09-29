@@ -148,10 +148,31 @@ nano::test::system::system (uint16_t count_a, nano::transport::transport_type ty
 	}
 }
 
+void nano::test::system::system::wait_until_nodes_destruct ()
+{
+	auto fn = [] (std::weak_ptr<nano::node> weak_ptr) {
+		return weak_ptr.lock () != nullptr;
+	};
+
+	while (std::any_of (nodes.begin (), nodes.end (), fn))
+	{
+		poll (1ms);
+	}
+}
+
 nano::test::system::~system ()
 {
+	// start a thread to wait until nodes destruct and drive the boost asio loop to help nodes finish their work
+	std::thread t{ [this] () { wait_until_nodes_destruct (); } };
+
 	// Only stop system in destructor to avoid confusing and random bugs when debugging assertions that hit deadline expired condition
 	stop ();
+
+	// nodes have been informed of stoppage, now destruct the nodes
+	nodes.erase (nodes.begin (), nodes.end ());
+
+	// wait until all nodes have been destructed
+	t.join ();
 
 #ifndef _WIN32
 	// Windows cannot remove the log and data files while they are still owned by this process.

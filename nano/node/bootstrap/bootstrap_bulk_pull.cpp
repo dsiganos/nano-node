@@ -63,6 +63,8 @@ void nano::bulk_pull_client::request ()
 	{
 		// Account for new pulls
 		req.start = pull.account_or_head;
+		req.header.flag_set (nano::message_header::bulk_pull_ascending_flag);
+		release_assert (req.header.bulk_pull_ascending ());
 	}
 	else
 	{

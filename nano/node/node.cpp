@@ -620,6 +620,8 @@ void nano::node::start ()
 	add_initial_peers ();
 	if (!flags.disable_legacy_bootstrap && !flags.disable_ongoing_bootstrap)
 	{
+		// also start a bootstrap for the genesis account just to get the cementing started faster
+		bootstrap_initiator.bootstrap (false, "genesis_bootstrap", std::numeric_limits<uint32_t>::max (), config.network_params.ledger.genesis->account ());
 		ongoing_bootstrap ();
 	}
 	if (!flags.disable_unchecked_cleanup)

@@ -38,6 +38,7 @@ if [[ "$OS" == 'Linux' ]]; then
     fi
 else
     BACKTRACE=""
+    export OPENSSL_ROOT_DIR="`brew --prefix "openssl@1.1"`"
 fi
 
 cmake \

@@ -1411,6 +1411,9 @@ TEST (active_transactions, fifo)
 	ASSERT_TIMELY_EQ (5s, node.active.size (), 1);
 
 	// Ensure overflow stats have been incremented
+	std::cout << "active_started:normal " << node.stats.count (nano::stat::type::active_started, nano::stat::detail::normal) << "\n";
+	std::cout << "active_started:hinted " << node.stats.count (nano::stat::type::active_started, nano::stat::detail::hinted) << "\n";
+	std::cout << "active_started:optimi " << node.stats.count (nano::stat::type::active_started, nano::stat::detail::optimistic) << "\n";
 	ASSERT_EQ (1, node.stats.count (nano::stat::type::active_dropped, nano::stat::detail::normal));
 
 	// Ensure the surviving transaction is the least recently inserted

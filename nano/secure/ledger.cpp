@@ -1263,12 +1263,7 @@ bool nano::ledger::dependents_confirmed (store::transaction const & transaction_
 {
 	auto dependencies (dependent_blocks (transaction_a, block_a));
 	return std::all_of (dependencies.begin (), dependencies.end (), [this, &transaction_a] (nano::block_hash const & hash_a) {
-		auto result (hash_a.is_zero ());
-		if (!result)
-		{
-			result = block_confirmed (transaction_a, hash_a);
-		}
-		return result;
+		return hash_a.is_zero () ? true : block_confirmed (transaction_a, hash_a);
 	});
 }
 

@@ -99,13 +99,10 @@ void nano::daemon::run (std::filesystem::path const & data_path, nano::node_flag
 		}
 
 		boost::asio::io_context io_ctx;
-		auto opencl = nano::opencl_work::create (config.opencl_enable, config.opencl, logger, config.node.network_params.work);
 		nano::opencl_work_func_t opencl_work_func;
-		if (opencl)
+		if (config.opencl_enable)
 		{
-			opencl_work_func = [&opencl] (nano::work_version const version_a, nano::root const & root_a, uint64_t difficulty_a, std::atomic<int> & ticket_a) {
-				return opencl->generate_work (version_a, root_a, difficulty_a, ticket_a);
-			};
+			opencl_work_func = nano::opencl_work::create_work_func (config.opencl, logger, config.node.network_params.work);
 		}
 		nano::work_pool opencl_work (config.node.network_params.network, config.node.work_threads, config.node.pow_sleep_interval, opencl_work_func);
 		try

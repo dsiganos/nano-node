@@ -522,26 +522,41 @@ boost::optional<uint64_t> nano::opencl_work::generate_work (nano::work_version c
 	return value;
 }
 
-std::unique_ptr<nano::opencl_work> nano::opencl_work::create (bool create_a, nano::opencl_config const & config_a, nano::logger & logger_a, nano::work_thresholds & work)
+std::unique_ptr<nano::opencl_work> nano::opencl_work::create (nano::opencl_config const & config_a, nano::logger & logger_a, nano::work_thresholds & work)
 {
-	std::unique_ptr<nano::opencl_work> result;
-	if (create_a)
+	// build opencl enviroment
+	bool error = false;
+	nano::opencl_environment environment (error);
+	if (error)
 	{
-		auto error (false);
+		logger_a.error (nano::log::type::opencl_work, "Failed to create OpenCL environment");
+		return nullptr;
+	}
 
-		nano::opencl_environment environment (error);
-		std::stringstream stream;
-		environment.dump (stream);
-		logger_a.info (nano::log::type::opencl_work, "OpenCL environment: {}", stream.str ());
+	// print opencl environment info
+	std::stringstream stream;
+	environment.dump (stream);
+	logger_a.info (nano::log::type::opencl_work, "OpenCL environment: {}", stream.str ());
 
-		if (!error)
-		{
-			result.reset (new nano::opencl_work (error, config_a, environment, logger_a, work));
-			if (error)
-			{
-				result.reset ();
-			}
-		}
+	// return work object or nullptr on failure
+	std::unique_ptr<nano::opencl_work> result (new nano::opencl_work (error, config_a, environment, logger_a, work));
+	if (error)
+	{
+		result.reset ();
 	}
 	return result;
+}
+
+// return a functor that generates work via opencl API or null on failure
+nano::opencl_work_func_t nano::opencl_work::create_work_func (nano::opencl_config const & config, nano::logger & logger, nano::work_thresholds & work)
+{
+	nano::opencl_work_func_t f;
+	auto opencl = nano::opencl_work::create (config, logger, work);
+	if (opencl)
+	{
+		f = [&opencl] (nano::work_version const version_a, nano::root const & root_a, uint64_t difficulty_a, std::atomic<int> & ticket_a) {
+			return opencl->generate_work (version_a, root_a, difficulty_a, ticket_a);
+		};
+	}
+	return f;
 }

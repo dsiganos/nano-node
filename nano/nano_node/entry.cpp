@@ -615,7 +615,7 @@ int main (int argc, char * const * argv)
 						{
 							nano::logger logger;
 							nano::opencl_config config (platform, device, threads);
-							auto opencl = nano::opencl_work::create (true, config, logger, network_params.work);
+							auto opencl = nano::opencl_work::create (config, logger, network_params.work);
 							nano::opencl_work_func_t opencl_work_func;
 							if (opencl)
 							{

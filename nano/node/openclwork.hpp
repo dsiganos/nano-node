@@ -23,6 +23,9 @@ namespace nano
 extern bool opencl_loaded;
 class logger;
 
+// type of function that does the work generation with an optional return value
+using opencl_work_func_t = std::function<boost::optional<uint64_t> (nano::work_version const, nano::root const &, uint64_t, std::atomic<int> &)>;
+
 class opencl_platform
 {
 public:

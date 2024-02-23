@@ -104,7 +104,7 @@ TEST (work, opencl)
 	}
 
 	nano::opencl_config config (0, 0, 16 * 1024);
-	auto opencl = nano::opencl_work::create (true, config, logger, nano::dev::network_params.work);
+	auto opencl = nano::opencl_work::create (config, logger, nano::dev::network_params.work);
 	ASSERT_TRUE (opencl);
 
 	// 0 threads, should add 1 for managing OpenCL

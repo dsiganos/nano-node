@@ -543,6 +543,33 @@ void nano::transport::tcp_channels::update (nano::tcp_endpoint const & endpoint_
 	}
 }
 
+void nano::transport::set_buffer_sizes (boost::asio::ip::tcp::socket & s)
+{
+	// Set socket option to increase receive buffer size
+	boost::asio::ip::tcp::socket::receive_buffer_size option;
+	s.get_option (option);
+	// std::cout << "Default receive buffer size: " << option.value() << std::endl;
+
+	option = 10000; // Set receive buffer size to 8192 bytes
+	s.set_option (option);
+
+	// Get the current receive buffer size
+	s.get_option (option);
+	// std::cout << "New receive buffer size: " << option.value() << std::endl;
+
+	// Set socket option to increase send buffer size
+	boost::asio::ip::tcp::socket::send_buffer_size send_option;
+	s.get_option (send_option);
+	// std::cout << "Default send buffer size: " << send_option.value() << std::endl;
+
+	send_option = 10000; // Set send buffer size to 8192 bytes
+	s.set_option (send_option);
+
+	// Get the current send buffer size
+	s.get_option (send_option);
+	// std::cout << "New send buffer size: " << send_option.value() << std::endl;
+}
+
 void nano::transport::tcp_channels::start_tcp (nano::endpoint const & endpoint_a)
 {
 	auto socket = std::make_shared<nano::transport::socket> (node);
@@ -555,6 +582,10 @@ void nano::transport::tcp_channels::start_tcp (nano::endpoint const & endpoint_a
 		{
 			if (!ec && channel)
 			{
+				set_buffer_sizes (socket->tcp_socket);
+				// socket->tcp_socket.set_option(boost::asio::socket_base::receive_buffer_size(8192));
+				// socket->tcp_socket.set_option(boost::asio::socket_base::send_buffer_size(8192));
+
 				// TCP node ID handshake
 				auto query = node_l->network.prepare_handshake_query (endpoint_a);
 				nano::node_id_handshake message{ node_l->network_params.network, query };

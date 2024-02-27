@@ -545,27 +545,21 @@ void nano::transport::tcp_channels::update (nano::tcp_endpoint const & endpoint_
 
 void nano::transport::set_buffer_sizes (boost::asio::ip::tcp::socket & s)
 {
-	// Set socket option to increase receive buffer size
+	// receive buffer size
 	boost::asio::ip::tcp::socket::receive_buffer_size option;
 	s.get_option (option);
 	// std::cout << "Default receive buffer size: " << option.value() << std::endl;
-
-	option = 10000; // Set receive buffer size to 8192 bytes
+	option = 128 * 1024; // Set receive buffer size to 128KB
 	s.set_option (option);
-
-	// Get the current receive buffer size
 	s.get_option (option);
 	// std::cout << "New receive buffer size: " << option.value() << std::endl;
 
-	// Set socket option to increase send buffer size
+	// send buffer size
 	boost::asio::ip::tcp::socket::send_buffer_size send_option;
 	s.get_option (send_option);
 	// std::cout << "Default send buffer size: " << send_option.value() << std::endl;
-
-	send_option = 10000; // Set send buffer size to 8192 bytes
+	send_option = 100000; // Set send buffer size to 128KB
 	s.set_option (send_option);
-
-	// Get the current send buffer size
 	s.get_option (send_option);
 	// std::cout << "New send buffer size: " << send_option.value() << std::endl;
 }

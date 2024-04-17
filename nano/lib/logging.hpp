@@ -159,9 +159,9 @@ public:
 	static void initialize_for_tests (nano::log_config fallback);
 	static void flush ();
 
+	static nano::log_config global_config;
 private:
 	static bool global_initialized;
-	static nano::log_config global_config;
 	static std::vector<spdlog::sink_ptr> global_sinks;
 	static std::function<std::string (nano::log::logger_id, std::string identifier)> global_name_formatter;
 	static nano::object_stream_config global_tracing_config;

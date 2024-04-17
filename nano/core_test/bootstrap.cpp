@@ -7,6 +7,7 @@
 #include <nano/test_common/network.hpp>
 #include <nano/test_common/system.hpp>
 #include <nano/test_common/testutil.hpp>
+#include <nano/lib/logging.hpp>
 
 #include <gtest/gtest.h>
 
@@ -1301,6 +1302,9 @@ TEST (bootstrap_processor, lazy_destinations)
 
 TEST (bootstrap_processor, lazy_pruning_missing_block)
 {
+	nano::logger::global_config.levels[{nano::log::type::bulk_pull_client, nano::log::detail::all}] = nano::log::level::trace;
+	nano::logger::global_config.levels[{nano::log::type::channel_sent, nano::log::detail::all}] = nano::log::level::trace;
+
 	nano::test::system system;
 	nano::node_config config = system.default_config ();
 	config.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;

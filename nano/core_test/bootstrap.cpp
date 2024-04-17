@@ -1302,6 +1302,7 @@ TEST (bootstrap_processor, lazy_destinations)
 
 TEST (bootstrap_processor, lazy_pruning_missing_block)
 {
+	nano::logger::global_config.levels[{nano::log::type::bootstrap, nano::log::detail::all}] = nano::log::level::trace;
 	nano::logger::global_config.levels[{nano::log::type::bulk_pull_client, nano::log::detail::all}] = nano::log::level::trace;
 	nano::logger::global_config.levels[{nano::log::type::bulk_pull_server, nano::log::detail::all}] = nano::log::level::trace;
 	nano::logger::global_config.levels[{nano::log::type::channel_sent, nano::log::detail::all}] = nano::log::level::trace;
